@@ -24,7 +24,7 @@ Alpine Linux 3.24.2（32 位 i686 内核），可以直接：
 ---
 
 ## 在线体验
-https://gitee.com/james2026/alpine/b.html
+./b.html
 
 
 打开后：
