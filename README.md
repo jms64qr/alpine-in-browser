@@ -288,14 +288,6 @@ please open an issue.
 
 MIT © 2026 [James2026](https://gitee.com/james2026)
 ```
-
----
-
-## 配套的 `LICENSE` 文件
-
-在仓库根目录新建一个**无扩展名**的文件，就叫 `LICENSE`，内容：
-
-```
 MIT License
 
 Copyright (c) 2026 James2026
