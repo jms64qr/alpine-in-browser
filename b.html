@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>浏览器里的真 Linux · Alpine 3.24.2 (v86/WASM)</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#030a07;min-height:100vh;display:flex;justify-content:center;align-items:center;font-family:monospace;padding:16px;}
+.term{width:1000px;max-width:94vw;background:#0b1a15;border-radius:14px;box-shadow:0 20px 35px rgba(0,0,0,.5);border:1px solid #1d5e4b;overflow:hidden;}
+.th{background:#1a352c;padding:9px 16px;display:flex;gap:12px;border-bottom:1px solid #0e463a;align-items:center;}
+.dot{width:12px;height:12px;border-radius:50%;background:#2c6e5c;}
+.dot.red{background:#c16a5a;}.dot.yel{background:#e2b063;}.dot.grn{background:#6ecf9a;}
+.ttl{color:#c7efe2;font-size:.75rem;flex:1;text-align:center;font-weight:bold;letter-spacing:1px;}
+.led{width:9px;height:9px;border-radius:50%;background:#4be38a;box-shadow:0 0 5px #1fdd7a;}
+.led.booting{background:#e2b063;box-shadow:0 0 5px #e2b063;animation:pulse 1s infinite;}
+.led.err{background:#c16a5a;box-shadow:0 0 5px #c16a5a;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.scr{background:#05120e;padding:16px;min-height:480px;max-height:520px;overflow-y:auto;font-size:13px;line-height:1.45;color:#cbf5e8;position:relative;}
+.scr::-webkit-scrollbar{width:6px;}
+.scr::-webkit-scrollbar-track{background:#06231c;}
+.scr::-webkit-scrollbar-thumb{background:#2f8a70;border-radius:6px;}
+#screen{position:absolute;top:16px;left:16px;right:16px;bottom:16px;z-index:2;display:none;overflow:hidden;}
+#screen.active{display:block;}
+#screen canvas{display:block;max-width:100%;height:auto;}
+.boot{white-space:pre-wrap;}
+.ftr{background:#09231d;padding:6px 16px;font-size:10px;color:#519e86;display:flex;justify-content:space-between;border-top:1px solid #175e4b;align-items:center;gap:10px;}
+button{background:#1d5948;border:none;color:#def5eb;font-family:monospace;padding:3px 14px;border-radius:25px;cursor:pointer;font-size:10px;}
+button:hover{background:#317a66;}
+button:disabled{opacity:.4;cursor:not-allowed;}
+.overlay{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:14px;z-index:5;background:#05120e;}
+.spinner{width:42px;height:42px;border:3px solid #1d5e4b;border-top-color:#6ecf9a;border-radius:50%;animation:spin .9s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.bootmsg{color:#8fd6bd;font-size:12px;text-align:center;max-width:400px;line-height:1.6;}
+.bootmsg b{color:#6ecf9a;}
+</style>
+</head>
+<body>
+<div class="term">
+<div class="th">
+  <div class="dot red"></div><div class="dot yel"></div><div class="dot grn"></div>
+  <div class="ttl">alpine:~# REAL LINUX (v86/WASM)</div>
+  <div class="led booting" id="led"></div>
+</div>
+<div class="scr" id="scr">
+  <div class="boot" id="boot">--- Alpine Linux 3.24.2 (real kernel via v86/WASM) ---
+>>> Loading v86 x86 emulator + Alpine virt ISO...
+>>> 首次启动需要从本地读取几十 MB 的 ISO，请稍候。
+>>> 进入 ISOLINUX 菜单后按回车，然后 login: 输入 root，密码直接回车。
+>>> 联网（可选）：进入后执行 udhcpc -i eth0 获取 IP。
+--------------------------------</div>
+  <div class="overlay" id="overlay">
+    <div class="spinner"></div>
+    <div class="bootmsg" id="bootmsg"><b>正在加载...</b><br>读取 v86 引擎与 Alpine ISO</div>
+  </div>
+  <div id="screen"></div>
+</div>
+<div class="ftr">
+  <span id="status">状态：初始化中…</span>
+  <div style="display:flex;gap:8px;">
+    <button id="ctrlaltdel" disabled title="发送 Ctrl+Alt+Del">⟲ 重启</button>
+    <button id="fullscreen" disabled title="全屏">⛶ 全屏</button>
+    <button id="saveState" disabled title="保存状态">💾 保存</button>
+    <button id="resetBtn">⟳ 重置</button>
+  </div>
+</div>
+</div>
+
+<!-- 本地 v86 引擎（新版，导出 window.V86） -->
+<script src="./libv86.js"></script>
+<script>
+const bootEl    = document.getElementById('boot');
+const overlay   = document.getElementById('overlay');
+const bootmsg   = document.getElementById('bootmsg');
+const v86Screen = document.getElementById('screen');
+const led       = document.getElementById('led');
+const statusEl  = document.getElementById('status');
+const resetBtn  = document.getElementById('resetBtn');
+const rebootBtn = document.getElementById('ctrlaltdel');
+const fsBtn     = document.getElementById('fullscreen');
+const saveBtn   = document.getElementById('saveState');
+
+let emulator   = null;
+let started    = false;
+let screenReady = false;
+let readyTimer = null;
+
+function setStatus(txt, state) {
+  statusEl.textContent = '状态：' + txt;
+  led.className = 'led';
+  if (state === 'boot') led.classList.add('booting');
+  if (state === 'err')  led.classList.add('err');
+}
+
+function showScreen() {
+  if (screenReady) return;
+  screenReady = true;
+  clearTimeout(readyTimer);
+  overlay.style.display = 'none';
+  v86Screen.classList.add('active');
+  setStatus('已启动：Alpine Linux 3.24.2 正在运行 ✅', 'ok');
+  rebootBtn.disabled = false;
+  fsBtn.disabled     = false;
+  saveBtn.disabled   = false;
+  bootEl.textContent += '\n✅ 已进入 Alpine。login: 输 root，密码直接回车。';
+  try { emulator && emulator.keyboard_set_status(true); } catch (e) {}
+}
+
+v86Screen.addEventListener('mousedown', () => {
+  try { emulator && emulator.keyboard_set_status(true); } catch (e) {}
+});
+
+function boot() {
+  if (started) return;
+  started     = true;
+  screenReady = false;
+  setStatus('加载 v86 引擎与 Alpine ISO…', 'boot');
+  bootmsg.innerHTML = '<b>加载中…</b><br>从本地读取 ISO 并初始化模拟器';
+
+  emulator = new V86({
+    wasm_path:       "./v86.wasm",
+    memory_size:     128 * 1024 * 1024,
+    vga_memory_size: 2 * 1024 * 1024,
+    screen_container: v86Screen,
+    bios:     { url: "./bios/seabios.bin" },
+    vga_bios: { url: "./bios/vgabios.bin" },
+    cdrom:    { url: "./images/alpine.iso" },
+    boot_order: 0x123,
+
+    // ↓↓↓ 虚拟网卡 + WISP 网络中继 ↓↓↓
+    // 如果只想要"局域网"（多标签页互通），把下面两行删掉即可。
+    // 如果想联网，需要用 WISP 中继服务器。
+    net_device: { type: "virtio" },
+    network_relay_url: "wss://relay.rybakit.ru/",
+
+    filesystem: {},
+    autostart: true,
+    disable_speaker: true,
+    disable_keyboard: false,
+    disable_mouse: true,
+  });
+
+  emulator.add_listener('emulator-ready', () => {
+    setStatus('模拟器就绪，等待 BIOS/引导…', 'boot');
+    bootmsg.innerHTML = '<b>模拟器已就绪</b><br>正在等待引导菜单';
+  });
+
+  emulator.add_listener('download-progress', (e) => {
+    if (e && typeof e.loaded === 'number' && typeof e.total === 'number' && e.total) {
+      const pct = Math.round(e.loaded / e.total * 100);
+      bootmsg.innerHTML = `<b>读取 ISO ${pct}%</b><br>${(e.loaded/1048576).toFixed(1)} / ${(e.total/1048576).toFixed(1)} MB`;
+    }
+  });
+
+  emulator.add_listener('download-error', () => {
+    setStatus('加载失败：检查文件路径', 'err');
+    bootmsg.innerHTML = '<b style="color:#c16a5a">加载失败</b><br>请检查 libv86.js / v86.wasm / bios / images 路径是否正确。';
+  });
+
+  // 网卡状态监听（可选，用于在底栏提示）
+  emulator.add_listener('net0-mac', (mac) => {
+    console.log('虚拟网卡 MAC:', mac);
+  });
+
+  readyTimer = setTimeout(showScreen, 8000);
+
+  let serialBuf = '';
+  emulator.add_listener('serial0-output-char', (ch) => {
+    serialBuf += ch;
+    if (serialBuf.length > 800) serialBuf = serialBuf.slice(-800);
+    if (/(login:|localhost:|alpine:)/i.test(serialBuf)) {
+      setTimeout(showScreen, 400);
+    }
+  });
+}
+
+rebootBtn.addEventListener('click', () => {
+  if (!emulator) return;
+  emulator.keyboard_send_scancodes([0x1d, 0x38, 0x53, 0xd3, 0xb8, 0x9d]);
+});
+
+fsBtn.addEventListener('click', () => {
+  const c = v86Screen.querySelector('canvas');
+  if (c && c.requestFullscreen) c.requestFullscreen();
+});
+
+saveBtn.addEventListener('click', () => {
+  if (!emulator) return;
+  emulator.save_state().then(s => {
+    const blob = new Blob([s], {type:'application/octet-stream'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'alpine-v86-state.bin';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setStatus('状态已保存为 alpine-v86-state.bin', 'ok');
+  }).catch(() => setStatus('状态保存失败', 'err'));
+});
+
+resetBtn.addEventListener('click', () => {
+  clearTimeout(readyTimer);
+  if (emulator) { try { emulator.destroy(); } catch(e){} emulator = null; }
+  started = false;
+  screenReady = false;
+  overlay.style.display = 'flex';
+  v86Screen.classList.remove('active');
+  v86Screen.innerHTML = '';
+  bootEl.textContent = '--- Alpine Linux 3.24.2 (real kernel via v86/WASM) ---\n>>> 正在重启模拟器…\n--------------------------------';
+  rebootBtn.disabled = true;
+  fsBtn.disabled     = true;
+  saveBtn.disabled   = true;
+  setTimeout(boot, 300);
+});
+
+window.addEventListener('load', () => {
+  if (typeof V86 === 'undefined') {
+    setStatus('无法加载 v86 引擎', 'err');
+    bootmsg.innerHTML = '<b style="color:#c16a5a">加载失败</b><br>libv86.js 未找到，请确认与本页面在同一目录。';
+    return;
+  }
+  boot();
+});
+</script>
+</body>
+</html>

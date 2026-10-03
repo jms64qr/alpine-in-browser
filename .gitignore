@@ -1,0 +1,20 @@
+@"
+# 编辑器/临时文件
+*.bak
+*~
+*.swp
+*.un~
+.*.un~
+
+# Python
+__pycache__/
+*.pyc
+a.py
+
+# 旧 ISO
+images/alpine-virt-3.19.1-x86.iso
+
+# 系统
+.DS_Store
+Thumbs.db
+"@ | Set-Content -Encoding UTF8 .gitignore
