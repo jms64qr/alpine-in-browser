@@ -1,4 +1,3 @@
-```markdown
 # Alpine Linux in Browser · 浏览器里的真 Linux
 
 > 在浏览器里跑一个**真正的 Alpine Linux**，不依赖任何插件、不联网、纯 WebAssembly。
