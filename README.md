@@ -1,4 +1,3 @@
-```markdown
 # Alpine Linux in Browser · 浏览器里的真 Linux
 
 > 在浏览器里跑一个**真正的 Alpine Linux**，不依赖任何插件、不联网、纯 WebAssembly。
@@ -25,8 +24,8 @@ Alpine Linux 3.24.2（32 位 i686 内核），可以直接：
 ---
 
 ## 在线体验
-https://gitee.com/james2026/alpine/b.html
-
+[click
+](b.html)
 
 打开后：
 
@@ -288,14 +287,6 @@ please open an issue.
 ## License
 
 MIT © 2026 [James2026](https://gitee.com/james2026)
-```
-
----
-
-## 配套的 `LICENSE` 文件
-
-在仓库根目录新建一个**无扩展名**的文件，就叫 `LICENSE`，内容：
-
 ```
 MIT License
 
