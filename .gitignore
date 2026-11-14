@@ -1,20 +1,31 @@
-@"
+cd C:\Users\zhou\Desktop\v86
+
+@'
 # 编辑器/临时文件
 *.bak
 *~
 *.swp
 *.un~
 .*.un~
+a.py
 
 # Python
 __pycache__/
 *.pyc
-a.py
 
-# 旧 ISO
+# 备份 ISO
+images/alpine-backup-real.iso
+images/alpine-backup-real*.iso
+images/alpine-serial.iso
 images/alpine-virt-3.19.1-x86.iso
+images/*副本*.iso
+images/alpine-backup-real*
+
+# 工作目录
+iso-work/
+xterm/
 
 # 系统
 .DS_Store
 Thumbs.db
-"@ | Set-Content -Encoding UTF8 .gitignore
+'@ | Set-Content -Encoding UTF8 .gitignore

@@ -23,15 +23,11 @@ Alpine Linux 3.24.2（32 位 i686 内核），可以直接：
 
 ---
 
-## 在线体验
-[click
-](b.html)
-
 打开后：
 
 1. 等待 5~15 秒（首次加载 ISO 约 49 MB，之后走浏览器缓存）
 2. 出现 **SeaBIOS** → **ISOLINUX 蓝色菜单**
-3. 直接按**回车**
+3. 直接按**回车**或者就单纯等待
 4. 停在 `localhost login:` 时，输入 `root`，密码**直接回车**
 5. 进入 `localhost:~#`，开始玩
 
@@ -64,25 +60,6 @@ v86/
 │   └── vgabios.bin
 └── images/
     └── alpine.iso        ← Alpine 3.24.2 virt x86，约 49 MB
-```
-
-### 启动本地 HTTP 服务器
-
-**不要双击 `b.html`**，`file://` 协议下浏览器会拒绝加载 `.wasm` 和 `.iso`。
-必须起本地 HTTP 服务：
-
-```bash
-# Python 3
-python -m http.server 8080
-
-# 或者 Node.js
-npx http-server -p 8080
-```
-
-然后浏览器访问：
-
-```
-http://localhost:8080/b.html
 ```
 
 ### 获取 Alpine ISO
@@ -126,7 +103,7 @@ https://github.com/copy/v86/tree/master/bios
 
 默认情况下虚拟机**没有网络**。如果要开启联网：
 
-在 `b.html` 里，`new V86({...})` 中加上：
+在 `html` 里，`new V86({...})` 中加上：
 
 ```javascript
 net_device: { type: "virtio" },
