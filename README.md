@@ -62,25 +62,6 @@ v86/
     └── alpine.iso        ← Alpine 3.24.2 virt x86，约 49 MB
 ```
 
-### 启动本地 HTTP 服务器
-
-**不要双击 `b.html`**，`file://` 协议下浏览器会拒绝加载 `.wasm` 和 `.iso`。
-必须起本地 HTTP 服务：
-
-```bash
-# Python 3
-python -m http.server 8080
-
-# 或者 Node.js
-npx http-server -p 8080
-```
-
-然后浏览器访问：
-
-```
-http://localhost:8080/b.html
-```
-
 ### 获取 Alpine ISO
 
 从 Alpine 官方下载 **32 位 virt 版**（v86 只能跑 i686，不能跑 x86_64）：
@@ -122,7 +103,7 @@ https://github.com/copy/v86/tree/master/bios
 
 默认情况下虚拟机**没有网络**。如果要开启联网：
 
-在 `b.html` 里，`new V86({...})` 中加上：
+在 `html` 里，`new V86({...})` 中加上：
 
 ```javascript
 net_device: { type: "virtio" },
